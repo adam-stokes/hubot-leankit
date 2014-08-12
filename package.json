@@ -1,0 +1,25 @@
+{
+  "name": "hubot-leankit",
+  "version": "0.0.1",
+  "description": "LeanKit integration for Hubot",
+  "main": "index.coffee",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/battlemidget/hubot-leankit.git"
+  },
+  "keywords": [
+    "hubot"
+  ],
+  "author": {
+    "name": "Adam Stokes",
+    "email": "adam.stokes@ubuntu.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/battlemidget/hubot-leankit/issues"
+  },
+  "homepage": "https://github.com/battlemidget/hubot-leankit",
+  "dependencies": {
+    "leankit-client": "^0.2.0"
+  }
+}
