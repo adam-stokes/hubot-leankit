@@ -5,63 +5,86 @@
 #   leankit-client
 #
 # Configuration:
-#   LK_USERNAME
-#   LK_PASSWORD
-#   LK_ACCOUNTNAME
+#   LEANKIT_EMAIL
+#   LEANKIT_PASSWORD
+#   LEANKIT_ACCOUNT
 #
 # Commands:
-#   lk card me <description> - Add a new card with a basic description
-#   lk board <name> - Query board by Name
-#   lk boards - List of available boards
-
+#   hubot lk add <boardIdx> <description> - Add a new card to the default ToDo lane
+#   hubot lk board <name> - Query board by Name
+#   hubot lk boards - List of available boards, shows boardIdx, Title
+#   hubot lk addBoards - Populate boards into db
 #
 # Author:
 #   Adam Stokes <adam.stokes@ubuntu.com>
 
 lk = require 'leankit-client'
+_  = require 'lodash'
 
-class LeanKit
-  constructor: (@robot) ->
-    unless process.env.LK_USERNAME?
-      return @robot.logger.error "LK_USERNAME env var not set."
-    unless process.env.LK_PASSWORD?
-      return @robot.logger.error "LK_PASSWORD env var not set."
-    unless process.env.LK_ACCOUNTNAME?
-      return @robot.logger.error "LK_ACCOUNTNAME env var not set."
+module.exports = (robot) ->
+  unless process.env.LEANKIT_EMAIL?
+    return @robot.logger.error "LEANKIT_EMAIL env var not set."
+  unless process.env.LEANKIT_PASSWORD?
+    return @robot.logger.error "LEANKIT_PASSWORD env var not set."
+  unless process.env.LEANKIT_ACCOUNT?
+    return @robot.logger.error "LEANKIT_ACCOUNT env var not set."
 
-    @client = lk.newClient(process.env.LK_ACCOUNTNAME,
-                          process.env.LK_USERNAME,
-                          process.env.LK_PASSWORD)
-    @robot.respond /lk card me (\d+) (.*)/i, @addCard
-    @robot.respond /lk boards/i, @listBoards
-    @robot.respond /lk board (.*)/i, @listBoardByName
-    @robot.respond /lk help/i, @help
+  client = lk.newClient(process.env.LEANKIT_ACCOUNT,
+                        process.env.LEANKIT_EMAIL,
+                        process.env.LEANKIT_PASSWORD)
 
-  help: (msg) =>
-    commands = @robot.helpCommands()
-    commands = (command for command in commands when command.match(/lk/))
-    msg.send commands.join("\n")
+  robot.brain.data.lkboards = {}
 
-  addCard: (msg) =>
+  robot.respond /lk add (\d+) (.*)/i, (msg) ->
     user = msg.message.user
-    description = msg.match[1]
-    msg.send "Card added, yo."
+    boardId = msg.match[1]
+    title = msg.match[2]
+    board = robot.brain.data.lkboards[boardId]
+    client.getBoardByName board, (err, b) ->
+      if b?
+        now = new Date()
+        cardType = _.find(b.CardTypes, 'IsDefault': true)
+        lane = _.find(b.Lanes, 'IsDefaultDropLane': true)
+        newCard = {}
+        newCard.TypeId = cardType.Id
+        newCard.Title = title
+        newCard.ExternalCardId = now.getTime()
+        newCard.LaneId = lane.Id
+        newCard.Position = 0
+        client.addCard b.Id, newCard, (err, res) ->
+          if res?
+            msg.send "Added card(#{res.CardId}): #{title} to " +
+                     "#{board.Title}/#{lane.title}."
+          else
+            msg.send "Unable to add card to Board"
 
-  listBoardByName: (msg) =>
+  robot.respond /lk add-boards/i, (msg) ->
+    user = msg.message.user
+    idx = 0
+    client.getBoards (err, res) ->
+      for item in res
+        if item.Title.match(/^Solutions/)
+          robot.brain.data.lkboards[idx] = item.Title
+          idx += 1
+      msg.send "Added #{idx} board(s) to BRaiN"
+
+  robot.respond /lk boards/i, (msg) ->
+    user = msg.message.user
+    for k,v of robot.brain.data.lkboards
+      msg.send "Board[#{k}] -> #{v}"
+
+  robot.respond /lk board (.*)/i, (msg) ->
     user = msg.message.user
     boardName = msg.match[1]
-    @client.getBoardByName boardName, (err, res) ->
+    client.getBoardByName boardName, (err, res) ->
       board = res
+      console.log board
       if res?
         msg.send "Board: #{board.Id} - #{board.Title}"
       else
         msg.send "Could not find board #{boardName}"
 
-  listBoards: (msg) =>
-    user = msg.message.user
-    @client.getBoards (err, res) ->
-      for item in res
-        if item.Title.match(/^Solutions/)
-          msg.send "Board: #{item.Id} - #{item.Title}"
-
-module.exports = (robot) -> new LeanKit(robot)
+  robot.respond /lk help/i, (msg) ->
+    commands = robot.helpCommands()
+    commands = (command for command in commands when command.match(/lk/))
+    msg.send commands.join("\n")
