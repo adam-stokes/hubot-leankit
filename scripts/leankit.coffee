@@ -53,12 +53,11 @@ module.exports = (robot) ->
         newCard.TypeId = cardType.Id
         newCard.Title = title
         newCard.ExternalCardId = now.getTime()
-        newCard.LaneId = lane.Id
-        newCard.Position = 0
-        client.addCard b.Id, newCard, (err, res) ->
+        newCard.Priority = 1
+        client.addCard b.Id, lane.Id, 0, newCard, (err, res) ->
           if res?
             msg.send "Added card(#{res.CardId}): #{title} to " +
-                     "#{board.Title}/#{lane.title}."
+                     "#{b.Title}/#{lane.Title}."
           else
             msg.send "Unable to add card to Board"
 
