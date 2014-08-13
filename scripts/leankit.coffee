@@ -44,7 +44,7 @@ module.exports = (robot) ->
     boardId = msg.match[1]
     title = msg.match[2]
     board = robot.brain.data.lkboards[boardId]
-    client.getBoardByName board, (err, b) ->
+    client.getBoard board.boardId, (err, b) ->
       if b?
         now = new Date()
         cardType = _.find(b.CardTypes, 'IsDefault': true)
@@ -67,14 +67,17 @@ module.exports = (robot) ->
     client.getBoards (err, res) ->
       for item in res
         if item.Title.match(/^Solutions/)
-          robot.brain.data.lkboards[idx] = item.Title
+          robot.brain.data.lkboards[idx] = {
+            'title' : item.Title,
+            'boardId' : item.Id
+          }
           idx += 1
       msg.send "Added #{idx} board(s) to BRaiN"
 
   robot.hear /^!lk-boards/i, (msg) ->
     user = msg.message.user
     for k,v of robot.brain.data.lkboards
-      msg.send "Board #{k}/#{v}"
+      msg.send "#{k}/#{v.title} (#{v.boardId})"
 
   robot.hear /^!lk-board (.*)/i, (msg) ->
     user = msg.message.user
