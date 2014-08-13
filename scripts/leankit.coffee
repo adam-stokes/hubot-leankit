@@ -10,14 +10,14 @@
 #   LEANKIT_ACCOUNT
 #
 # Commands:
-#   hubot lk add <boardIdx> <description> - Add a new card to the default ToDo lane
-#   hubot lk board <name> - Query board by Name
-#   hubot lk boards - List of available boards, shows boardIdx, Title
-#   hubot lk add-boards - Populate boards into db
+#   !lk-add <boardIdx> <description> - Add a new card to the default ToDo lane
+#   !lk-board <name> - Query board by Name
+#   !lk-boards - List of available boards, shows boardIdx, Title
+#   !lk-store-boards - Populate boards into db
 #
 # Notes:
-#    * Populate your boards into redis with add-boards, then reference your
-#      board with the index given from `lk boards`
+#    * Populate your boards into redis with !lk-store-boards, then reference
+#      your board with the index given from `lk boards`
 #
 # Author:
 #   Adam Stokes <adam.stokes@ubuntu.com>
@@ -39,7 +39,7 @@ module.exports = (robot) ->
 
   robot.brain.data.lkboards = {}
 
-  robot.respond /lk add (\d+) (.*)/i, (msg) ->
+  robot.hear /^!lk-add (\d+) (.*)/i, (msg) ->
     user = msg.message.user
     boardId = msg.match[1]
     title = msg.match[2]
@@ -61,7 +61,7 @@ module.exports = (robot) ->
           else
             msg.send "Unable to add card to Board"
 
-  robot.respond /lk add-boards/i, (msg) ->
+  robot.hear /^!lk-store-boards/i, (msg) ->
     user = msg.message.user
     idx = 0
     client.getBoards (err, res) ->
@@ -71,12 +71,12 @@ module.exports = (robot) ->
           idx += 1
       msg.send "Added #{idx} board(s) to BRaiN"
 
-  robot.respond /lk boards/i, (msg) ->
+  robot.hear /^!lk-boards/i, (msg) ->
     user = msg.message.user
     for k,v of robot.brain.data.lkboards
-      msg.send "Board[#{k}] -> #{v}"
+      msg.send "Board #{k}/#{v}"
 
-  robot.respond /lk board (.*)/i, (msg) ->
+  robot.hear /^!lk-board (.*)/i, (msg) ->
     user = msg.message.user
     boardName = msg.match[1]
     client.getBoardByName boardName, (err, res) ->
@@ -86,7 +86,7 @@ module.exports = (robot) ->
       else
         msg.send "Could not find board #{boardName}"
 
-  robot.respond /lk help/i, (msg) ->
+  robot.hear /^!lk-help/i, (msg) ->
     commands = robot.helpCommands()
     commands = (command for command in commands when command.match(/lk/))
     msg.send commands.join("\n")
