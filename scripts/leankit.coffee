@@ -13,7 +13,11 @@
 #   hubot lk add <boardIdx> <description> - Add a new card to the default ToDo lane
 #   hubot lk board <name> - Query board by Name
 #   hubot lk boards - List of available boards, shows boardIdx, Title
-#   hubot lk addBoards - Populate boards into db
+#   hubot lk add-boards - Populate boards into db
+#
+# Notes:
+#    * Populate your boards into redis with add-boards, then reference your
+#      board with the index given from `lk boards`
 #
 # Author:
 #   Adam Stokes <adam.stokes@ubuntu.com>
@@ -78,7 +82,6 @@ module.exports = (robot) ->
     boardName = msg.match[1]
     client.getBoardByName boardName, (err, res) ->
       board = res
-      console.log board
       if res?
         msg.send "Board: #{board.Id} - #{board.Title}"
       else
