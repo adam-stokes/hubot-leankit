@@ -27,11 +27,11 @@ _  = require 'lodash'
 
 module.exports = (robot) ->
   unless process.env.LEANKIT_EMAIL?
-    return @robot.logger.error "LEANKIT_EMAIL env var not set."
+    return robot.logger.error "LEANKIT_EMAIL env var not set."
   unless process.env.LEANKIT_PASSWORD?
-    return @robot.logger.error "LEANKIT_PASSWORD env var not set."
+    return robot.logger.error "LEANKIT_PASSWORD env var not set."
   unless process.env.LEANKIT_ACCOUNT?
-    return @robot.logger.error "LEANKIT_ACCOUNT env var not set."
+    return robot.logger.error "LEANKIT_ACCOUNT env var not set."
 
   client = lk.newClient(process.env.LEANKIT_ACCOUNT,
                         process.env.LEANKIT_EMAIL,
