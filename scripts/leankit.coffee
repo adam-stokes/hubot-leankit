@@ -10,14 +10,21 @@
 #   LEANKIT_ACCOUNT
 #
 # Commands:
-#   !lk-add <boardIdx> <description> - Add a new card to the default ToDo lane
+#   !lk-set-default <boardId> - Set default board
+#   !lk-get-default - Get saved default board
+#   !lk-unset-default - Clear default board
+#   !lk-add-card <boardId> <description> - Add a new card to the default lane.
+#   !lk-del-card <boardId> <cardId> - Delete a card.
+#   !lk-search <boardId> <query> - Search board
 #   !lk-board <name> - Query board by Name
-#   !lk-boards - List of available boards, shows boardIdx, Title
-#   !lk-store-boards - Populate boards into db
+#   !lk-boards <query> - List of available boards, optional: <query>
 #
 # Notes:
 #    * Populate your boards into redis with !lk-store-boards, then reference
 #      your board with the index given from `lk boards`
+#    * Specifying the boardId is required unless you set a default board with
+#      !lk-set-default <boardId>
+#    * boardId is always required when deleting a card.
 #
 # Author:
 #   Adam Stokes <adam.stokes@ubuntu.com>
@@ -37,14 +44,93 @@ module.exports = (robot) ->
                         process.env.LEANKIT_EMAIL,
                         process.env.LEANKIT_PASSWORD)
 
-  robot.brain.data.lkboards = {}
+  robot.hear /^!lk-search\s+(\d+)?\s*(.*)$/i, (msg) ->
+    boardId = msg.match[1]
 
-  robot.hear /^!lk-add (\d+) (.*)/i, (msg) ->
+    if not boardId?
+      if robot.brain.data.lkboard?
+        boardId = robot.brain.data.lkboard.Id
+      else
+        return msg.send "No boardId found and no default board set."
+
+    query = msg.match[2]
+    searchOpts = {
+      SearchTerm: query,
+      SearchInBacklog: false,
+      SearchInRecentArchive: false,
+      SearchInOldArchive: false,
+      SearchAllBoards: false,
+      IncludeTaskboards: false,
+      IncludeComments: false,
+      IncludeDescription: true,
+      IncludeExternalId: false,
+      IncludeTags: false,
+      AddedAfter: null,
+      AddedBefore: null,
+      Page: 1
+      MaxResults: 4,  # Dont spam
+      OrderBy: "CreatedOn",
+      SortOrder: 1
+    }
+
+    client.searchCards boardId, searchOpts, (err, res) ->
+      unless res.Results.length > 0
+        return msg.send "No results found."
+      for card in res.Results
+        assignedUser = card.AssignedUserName
+        unless !!assignedUser
+          assignedUser = "Unassigned"
+
+        msg.send "(#{card.Id}|#{card.PriorityText}|#{card.CreateDate}"+
+                 "|#{assignedUser}) #{card.Title}"
+
+  robot.hear /^!lk-set-default (\d+)/, (msg) ->
+    boardId = msg.match[1]
+    client.getBoard boardId, (err, b) ->
+      if b and b.ReplyCode == 503
+        return msg.send "Unable to find board with id #{boardId}"
+      else
+        robot.brain.data.lkboard = b
+        return msg.send "#{b.Title} set as default board."
+
+  robot.hear /^!lk-unset-default/, (msg) ->
+    if robot.brain.data.lkboard?
+      robot.brain.data.lkboard = undefined
+    msg.send "Unset default board."
+
+  robot.hear /^!lk-get-default/, (msg) ->
+    if robot.brain.data.lkboard?
+      board = robot.brain.data.lkboard
+      msg.send "(#{board.Id}) #{board.Title} is the default board."
+    else
+      msg.send "No default board is set."
+
+  robot.hear /^!lk-del-card\s+(\d+)\s+(\d+)\s*(srsly)?/, (msg) ->
+    user = msg.message.user
+    boardId = msg.match[1]
+    cardId = msg.match[2]
+    isSerious = msg.match[3]
+    if not isSerious?
+      return msg.reply "I don't trust you, add 'srsly' to the end if you " +
+                       "really wanted this."
+    client.deleteCard boardId, cardId, (err, res) ->
+      msg.send "#{cardId} deleted."
+
+  robot.hear /^!lk-add-card\s+(\d+)?\s*(.*)$/i, (msg) ->
     user = msg.message.user
     boardId = msg.match[1]
     title = msg.match[2]
-    board = robot.brain.data.lkboards[boardId]
-    client.getBoard board.boardId, (err, b) ->
+
+    if not boardId?
+      if robot.brain.data.lkboard?
+        boardId = robot.brain.data.lkboard.Id
+      else
+        return msg.send "No boardId found and no default board set."
+
+    client.getBoard boardId, (err, b) ->
+      if b and b.ReplyCode == 503
+        return msg.send "Unable to find board with id #{boardId}"
+
       if b?
         now = new Date()
         cardType = _.find(b.CardTypes, 'IsDefault': true)
@@ -56,28 +142,22 @@ module.exports = (robot) ->
         newCard.Priority = 1
         client.addCard b.Id, lane.Id, 0, newCard, (err, res) ->
           if res?
-            msg.send "Added card(#{res.CardId}): #{title} to " +
-                     "#{b.Title}/#{lane.Title}."
+            return msg.send "Added card(#{res.CardId}): #{title} to " +
+                            "#{b.Title}/#{lane.Title}."
           else
-            msg.send "Unable to add card to Board"
+            return msg.send "Unable to add card to Board"
+      else
+        return msg.send "Unable to find board with id #{boardId}"
 
-  robot.hear /^!lk-store-boards/i, (msg) ->
+  robot.hear /^!lk-boards\s+(.*)/i, (msg) ->
     user = msg.message.user
-    idx = 0
+    fuzz = new RegExp "#{msg.match[1]}"
     client.getBoards (err, res) ->
+      unless res.length > 0
+        return msg.send "No boards found."
       for item in res
-        if item.Title.match(/^Solutions/)
-          robot.brain.data.lkboards[idx] = {
-            'title' : item.Title,
-            'boardId' : item.Id
-          }
-          idx += 1
-      msg.send "Added #{idx} board(s) to BRaiN"
-
-  robot.hear /^!lk-boards/i, (msg) ->
-    user = msg.message.user
-    for k,v of robot.brain.data.lkboards
-      msg.send "#{k}/#{v.title} (#{v.boardId})"
+        if item.Title.match(fuzz)
+          msg.send "(#{item.Id}) #{item.Title}"
 
   robot.hear /^!lk-board (.*)/i, (msg) ->
     user = msg.message.user
