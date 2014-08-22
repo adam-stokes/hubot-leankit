@@ -10,14 +10,15 @@
 #   LEANKIT_ACCOUNT
 #
 # Commands:
-#   !lk-set-default <boardId> - Set default board
-#   !lk-get-default - Get saved default board
-#   !lk-unset-default - Clear default board
-#   !lk-add-card <boardId> <description> - Add a new card to the default lane.
-#   !lk-del-card <boardId> <cardId> - Delete a card.
-#   !lk-search <boardId> <query> - Search board
-#   !lk-board <name> - Query board by Name
-#   !lk-boards <query> - List of available boards, optional: <query>
+#   leankit add default <boardId> - Set default board
+#   leankit show default - Get saved default board
+#   leankit rm default - Clear default board
+#   leankit add card <boardId> <description> - Add a new card to the default lane.
+#   leankit rm card <boardId> <cardId> - Delete a card.
+#   leankit search <boardId> <query> - Search board
+#   leankit board <name> - Query board by Name
+#   leankit boards <query> - List of available boards, optional: <query>
+#   leankit help - See a list of the available commands
 #
 # Notes:
 #    * Populate your boards into redis with !lk-store-boards, then reference
@@ -44,7 +45,7 @@ module.exports = (robot) ->
                         process.env.LEANKIT_EMAIL,
                         process.env.LEANKIT_PASSWORD)
 
-  robot.hear /^!lk-search\s+(\d+)?\s*(.*)$/i, (msg) ->
+  robot.hear /^leankit search\s+(\d+)?\s*(.*)$/i, (msg) ->
     boardId = msg.match[1]
 
     if not boardId?
@@ -84,7 +85,7 @@ module.exports = (robot) ->
         msg.send "(#{card.Id}|#{card.PriorityText}|#{card.CreateDate}"+
                  "|#{assignedUser}) #{card.Title}"
 
-  robot.hear /^!lk-set-default (\d+)/, (msg) ->
+  robot.hear /^leankit add default (\d+)/, (msg) ->
     boardId = msg.match[1]
     client.getBoard boardId, (err, b) ->
       if b and b.ReplyCode == 503
@@ -93,19 +94,19 @@ module.exports = (robot) ->
         robot.brain.data.lkboard = b
         return msg.send "#{b.Title} set as default board."
 
-  robot.hear /^!lk-unset-default/, (msg) ->
+  robot.hear /^leankit rm default/, (msg) ->
     if robot.brain.data.lkboard?
       robot.brain.data.lkboard = undefined
     msg.send "Unset default board."
 
-  robot.hear /^!lk-get-default/, (msg) ->
+  robot.hear /^leankit show default/, (msg) ->
     if robot.brain.data.lkboard?
       board = robot.brain.data.lkboard
       msg.send "(#{board.Id}) #{board.Title} is the default board."
     else
       msg.send "No default board is set."
 
-  robot.hear /^!lk-del-card\s+(\d+)\s+(\d+)\s*(srsly)?/, (msg) ->
+  robot.hear /^leankit rm card\s+(\d+)\s+(\d+)\s*(srsly)?/, (msg) ->
     user = msg.message.user
     boardId = msg.match[1]
     cardId = msg.match[2]
@@ -116,7 +117,7 @@ module.exports = (robot) ->
     client.deleteCard boardId, cardId, (err, res) ->
       msg.send "#{cardId} deleted."
 
-  robot.hear /^!lk-add-card\s+(\d+)?\s*(.*)$/i, (msg) ->
+  robot.hear /^leankit add card\s+(\d+)?\s*(.*)$/i, (msg) ->
     user = msg.message.user
     boardId = msg.match[1]
     title = msg.match[2]
@@ -149,7 +150,7 @@ module.exports = (robot) ->
       else
         return msg.send "Unable to find board with id #{boardId}"
 
-  robot.hear /^!lk-boards\s+(.*)/i, (msg) ->
+  robot.hear /^leankit boards\s+(.*)/i, (msg) ->
     user = msg.message.user
     fuzz = new RegExp "#{msg.match[1]}"
     client.getBoards (err, res) ->
@@ -159,7 +160,7 @@ module.exports = (robot) ->
         if item.Title.match(fuzz)
           msg.send "(#{item.Id}) #{item.Title}"
 
-  robot.hear /^!lk-board (.*)/i, (msg) ->
+  robot.hear /^leankit board (.*)/i, (msg) ->
     user = msg.message.user
     boardName = msg.match[1]
     client.getBoardByName boardName, (err, res) ->
@@ -169,7 +170,7 @@ module.exports = (robot) ->
       else
         msg.send "Could not find board #{boardName}"
 
-  robot.hear /^!lk-help/i, (msg) ->
+  robot.hear /^leankit help/i, (msg) ->
     commands = robot.helpCommands()
     commands = (command for command in commands when command.match(/lk/))
     msg.send commands.join("\n")
