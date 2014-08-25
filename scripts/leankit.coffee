@@ -117,7 +117,7 @@ module.exports = (robot) ->
     client.deleteCard boardId, cardId, (err, res) ->
       msg.send "#{cardId} deleted."
 
-  robot.hear /^leankit add card\s+(\d+)?\s*(.*)$/i, (msg) ->
+  robot.hear /^leankit add card (\d+)? \"(.*)\"$/i, (msg) ->
     user = msg.message.user
     boardId = msg.match[1]
     title = msg.match[2]
@@ -135,12 +135,17 @@ module.exports = (robot) ->
       if b?
         now = new Date()
         cardType = _.find(b.CardTypes, 'IsDefault': true)
+
         lane = _.find(b.Lanes, 'IsDefaultDropLane': true)
+        if not lane?
+          lane = _.first(b.Backlog)
+
         newCard = {}
         newCard.TypeId = cardType.Id
         newCard.Title = title
         newCard.ExternalCardId = now.getTime()
         newCard.Priority = 1
+
         client.addCard b.Id, lane.Id, 0, newCard, (err, res) ->
           if res?
             return msg.send "Added card(#{res.CardId}): #{title} to " +
