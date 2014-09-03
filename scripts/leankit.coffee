@@ -117,7 +117,7 @@ module.exports = (robot) ->
     client.deleteCard boardId, cardId, (err, res) ->
       msg.send "#{cardId} deleted."
 
-  robot.hear /^leankit add card (\d+)? \"(.*)\"$/i, (msg) ->
+  robot.hear /^leankit add card\s+(\d+)?\s*(.*)$/i, (msg) ->
     user = msg.message.user
     boardId = msg.match[1]
     title = msg.match[2]
