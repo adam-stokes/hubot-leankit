@@ -177,5 +177,5 @@ module.exports = (robot) ->
 
   robot.hear /^leankit help/i, (msg) ->
     commands = robot.helpCommands()
-    commands = (command for command in commands when command.match(/lk/))
+    commands = (command for command in commands when command.match(/leankit/))
     msg.send commands.join("\n")
