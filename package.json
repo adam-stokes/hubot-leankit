@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/battlemidget/hubot-leankit",
   "dependencies": {
-    "leankit-client": "^0.2.0",
+    "leankit-client": "^0.6.0",
     "lodash": "^2.4.1"
   }
 }

@@ -41,7 +41,7 @@ module.exports = (robot) ->
   unless process.env.LEANKIT_ACCOUNT?
     return robot.logger.error "LEANKIT_ACCOUNT env var not set."
 
-  client = lk.newClient(process.env.LEANKIT_ACCOUNT,
+  client = lk.createClient(process.env.LEANKIT_ACCOUNT,
                         process.env.LEANKIT_EMAIL,
                         process.env.LEANKIT_PASSWORD)
 
